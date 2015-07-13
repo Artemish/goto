@@ -62,7 +62,7 @@ goto() {
       return -1
     fi
 
-    __gotodb["$2"]=''
+    unset __gotodb["$2"]
     __write_gotodb
 
   else
