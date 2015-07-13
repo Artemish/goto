@@ -21,7 +21,11 @@ __write_gotodb() {
 }
 
 goto() {
-  local usage='Usage: goto [-m destination] name'
+  local usage="\
+Usage: goto alias
+    [-m destination] alias
+    [-x alias] alias
+    -l"
 
   if [[ $# == 0 ]] ; then
     echo "$usage"
@@ -64,6 +68,11 @@ goto() {
 
     unset __gotodb["$2"]
     __write_gotodb
+
+  elif [[ $1 == '-l' ]]; then
+    for key in "${!__gotodb[@]}"; do
+      echo "${key} -> ${__gotodb[${key}]}"
+    done
 
   else
     local result=${__gotodb[$1]}
