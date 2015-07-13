@@ -4,6 +4,7 @@ __alias_file=~/aliases.txt
 __read_gotodb() {
   __gotodb=()
   while read line; do
+    # set & restore the bash field delimiter
     DELIM=${IFS}; IFS=":"
     tokens=(${line}); IFS=$DELIM
 
@@ -13,75 +14,81 @@ __read_gotodb() {
   done < ${__alias_file}
 }
 
-__write_gotodb() {
-  > ${__alias_file}
-  for key in "${!__gotodb[@]}"; do
-    echo "${key}:${__gotodb[${key}]}" >> ${__alias_file}
-  done
-}
-
-goto() {
-  local usage="\
-Usage: goto alias
-    [-m destination] alias
-    [-x alias] alias
-    -l"
-
-  if [[ $# == 0 ]] ; then
-    echo "$usage"
-    return 1
-  fi
-  
-  if [ -z ${__gotodb} ]; then 
-    __read_gotodb
-  fi
-
-  # getopt seemed like overkill
-  if [[ $1 == '-m' ]] ; then
-    if [[ $# -ne 3 ]]; then
-      echo "$usage"
-      return 1
-    fi
-
-    local abspath=$(cd "$(dirname "$2")"; pwd)/"$(basename "$2")"
-
-    if ! [[ -e $abspath ]] ; then
-      echo "No such directory: $abspath"
-      return 2
-    fi
-
-    __gotodb["$3"]=${abspath}
-
-    __write_gotodb
-
-  elif [[ $1 == '-d' ]]; then
-    if [[ $# -ne 2 ]]; then
-      echo "$usage"
-      return 1
-    fi
-
-    local result=${__gotodb[$2]}
-    if [[ -z "$result" ]] ; then
-      echo "No alias for '$2'."
-      return -1
-    fi
-
-    unset __gotodb["$2"]
-    __write_gotodb
-
-  elif [[ $1 == '-l' ]]; then
+  __write_gotodb() {
+    # Clear the alias file
+    > ${__alias_file}
     for key in "${!__gotodb[@]}"; do
-      echo "${key} -> ${__gotodb[${key}]}"
+      local value="${__gotodb[${key}]}"
+      echo "${key}:${value}" >> ${__alias_file}
     done
+  }
 
-  else
-    local result=${__gotodb[$1]}
-    if [[ -e "$result" ]] ; then
-      cd "$result"
-      return 0
-    else
-      echo "No alias for '$1'."
-      return -1
+  goto() {
+    local usage="\
+  Usage: goto alias
+      [-m destination] alias
+      [-x alias] alias
+      -l"
+
+    if [[ $# == 0 ]] ; then
+      echo "$usage"
+      return 1
     fi
-  fi
+    
+    if [ -z ${__gotodb} ]; then 
+      __read_gotodb
+    fi
+
+    # getopt seemed like overkill
+    # 'm' for making a new alias
+    if [[ $1 == '-m' ]] ; then
+      if [[ $# -ne 3 ]]; then
+        echo "$usage"
+        return 1
+      fi
+
+      local abspath=$(cd "$(dirname "$2")"; pwd)/"$(basename "$2")"
+
+      if ! [[ -e $abspath ]] ; then
+        echo "No such directory: $abspath"
+        return 2
+      fi
+
+      __gotodb["$3"]=${abspath}
+
+      __write_gotodb
+
+    # 'd' for deleting an alias
+    elif [[ $1 == '-d' ]]; then
+      if [[ $# -ne 2 ]]; then
+        echo "$usage"
+        return 1
+      fi
+
+      local result=${__gotodb[$2]}
+      if [[ -z "$result" ]] ; then
+        echo "No alias for '$2'."
+        return -1
+      fi
+
+      unset __gotodb["$2"]
+      __write_gotodb
+
+    # 'l' for listing aliases
+    elif [[ $1 == '-l' ]]; then
+      for key in "${!__gotodb[@]}"; do
+        echo "${key} -> ${__gotodb[${key}]}" 
+      done | column -t 
+
+    # default case - find the entry and CD to it
+    else
+      local result=${__gotodb[$1]}
+      if [[ -e "$result" ]] ; then
+        cd "$result"
+        return 0
+      else
+        echo "No alias for '$1'."
+        return -1
+      fi
+    fi
 }
