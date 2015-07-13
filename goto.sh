@@ -1,8 +1,19 @@
-declare -A __gotodb
+declare -A GOTODB
 __alias_file=~/aliases.txt
 
+__goto_complete() {
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+
+  COMPREPLY=( $(compgen -W "${!GOTODB[*]}" -- "${cur}") )
+  return 0
+}
+
+complete -F __goto_complete goto
+
 __read_gotodb() {
-  __gotodb=()
+  GOTODB=()
   while read line; do
     # set & restore the bash field delimiter
     DELIM=${IFS}; IFS=":"
@@ -10,15 +21,15 @@ __read_gotodb() {
 
     key=${tokens[0]};
     value=${tokens[1]};
-    __gotodb["$key"]="$value"
+    GOTODB["$key"]="$value"
   done < ${__alias_file}
 }
 
   __write_gotodb() {
     # Clear the alias file
     > ${__alias_file}
-    for key in "${!__gotodb[@]}"; do
-      local value="${__gotodb[${key}]}"
+    for key in "${!GOTODB[@]}"; do
+      local value="${GOTODB[${key}]}"
       echo "${key}:${value}" >> ${__alias_file}
     done
   }
@@ -35,7 +46,7 @@ __read_gotodb() {
       return 1
     fi
     
-    if [ -z ${__gotodb} ]; then 
+    if [ -z ${GOTODB} ]; then 
       __read_gotodb
     fi
 
@@ -54,7 +65,7 @@ __read_gotodb() {
         return 2
       fi
 
-      __gotodb["$3"]=${abspath}
+      GOTODB["$3"]=${abspath}
 
       __write_gotodb
 
@@ -65,24 +76,24 @@ __read_gotodb() {
         return 1
       fi
 
-      local result=${__gotodb[$2]}
+      local result=${GOTODB[$2]}
       if [[ -z "$result" ]] ; then
         echo "No alias for '$2'."
         return -1
       fi
 
-      unset __gotodb["$2"]
+      unset GOTODB["$2"]
       __write_gotodb
 
     # 'l' for listing aliases
     elif [[ $1 == '-l' ]]; then
-      for key in "${!__gotodb[@]}"; do
-        echo "${key} -> ${__gotodb[${key}]}" 
+      for key in "${!GOTODB[@]}"; do
+        echo "${key} -> ${GOTODB[${key}]}" 
       done | column -t 
 
     # default case - find the entry and CD to it
     else
-      local result=${__gotodb[$1]}
+      local result=${GOTODB[$1]}
       if [[ -e "$result" ]] ; then
         cd "$result"
         return 0
@@ -92,3 +103,5 @@ __read_gotodb() {
       fi
     fi
 }
+
+__read_gotodb
