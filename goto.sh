@@ -1,8 +1,13 @@
+#!/usr/bin/sh
+
+autoload bashcompinit
+bashcompinit
+
 declare -A GOTODB
 __alias_file=~/aliases.txt
 
 __goto_complete() {
-  local cur prev opts
+  local cur 
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
 
@@ -14,7 +19,7 @@ complete -F __goto_complete goto
 
 __read_gotodb() {
   GOTODB=()
-  while read line; do
+  while read -r line; do
     # set & restore the bash field delimiter
     DELIM=${IFS}; IFS=":"
     tokens=(${line}); IFS=$DELIM
@@ -40,13 +45,15 @@ goto() {
   [-m destination] alias
   [-x alias] alias
   -l"
+  local abspath
 
   if [[ $# == 0 ]] ; then
     echo "$usage"
     return 1
   fi
 
-  if [ -z ${GOTODB} ]; then 
+
+  if [ "${#GOTODB}" -eq 0 ]; then 
     __read_gotodb
   fi
 
@@ -58,7 +65,7 @@ goto() {
       return 1
     fi
 
-    local abspath=$(cd "$(dirname "$2")"; pwd)/"$(basename "$2")"
+    abspath="$(cd "$(dirname "$2")" || exit; pwd)"/"$(basename "$2")"
 
     if ! [[ -e $abspath ]] ; then
       echo "No such directory: $abspath"
@@ -69,7 +76,7 @@ goto() {
 
     __write_gotodb
 
-    # 'd' for deleting an alias
+  # 'd' for deleting an alias
   elif [[ $1 == '-d' ]]; then
     if [[ $# -ne 2 ]]; then
       echo "$usage"
@@ -79,7 +86,7 @@ goto() {
     local result=${GOTODB[$2]}
     if [[ -z "$result" ]] ; then
       echo "No alias for '$2'."
-      return -1
+      return 255
     fi
 
     unset GOTODB["$2"]
@@ -95,11 +102,11 @@ goto() {
   else
     local result=${GOTODB[$1]}
     if [[ -e "$result" ]] ; then
-      cd "$result"
+      cd "$result" || exit
       return 0
     else
       echo "No alias for '$1'."
-      return -1
+      return 255
     fi
   fi
 }
